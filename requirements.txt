@@ -1,3 +1,8 @@
-streamlit==1.32.0
-google-generativeai==0.3.2
-scikit-learn
+streamlit
+pandas
+google-generativeai
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+plyer

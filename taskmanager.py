@@ -4,77 +4,80 @@ import google.generativeai as genai
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# Set page config
-st.set_page_config(page_title="College Chatbot 🎓", page_icon="🎓", layout="centered")
+# Set up the Streamlit page
+st.set_page_config(page_title="Task Manager Chatbot ✅", page_icon="✅", layout="centered")
 
-# Initialize session state for chat history
+# Initialize session state for tasks and chat history
+if "tasks" not in st.session_state:
+    st.session_state.tasks = pd.DataFrame(columns=["Task", "Details"])
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Load CSV from GitHub (replace with your actual URL)
-csv_url = "college_faq.csv"
-
-try:
-    df = pd.read_csv(csv_url)
-except Exception as e:
-    st.error(f"Failed to load the CSV file. Error: {e}")
-    st.stop()
-
-# Preprocess data
-df = df.fillna("")
-df['Question'] = df['Question'].str.lower()
-df['Answer'] = df['Answer'].str.lower()
-
-# Create TF-IDF vectorizer
-vectorizer = TfidfVectorizer()
-question_vectors = vectorizer.fit_transform(df['Question'])
-
-# Configure Gemini API (replace with your actual API key)
-API_KEY = "AIzaSyBsq5Kd5nJgx2fejR77NT8v5Lk3PK4gbH8"  # DO NOT EMBED KEYS DIRECTLY! Use st.secrets or env vars!
+# Configure Gemini API (Replace with your actual API key)
+API_KEY = "YOUR_GEMINI_API_KEY"  # Store in st.secrets or environment variables in production!
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Function to find the closest question using cosine similarity
-def find_closest_question(user_query, vectorizer, question_vectors, df):
+# TF-IDF vectorizer initialization
+vectorizer = TfidfVectorizer()
+
+# Function to find the closest task
+def find_closest_task(user_query, vectorizer, task_vectors, df):
     query_vector = vectorizer.transform([user_query.lower()])
-    similarities = cosine_similarity(query_vector, question_vectors).flatten()
+    similarities = cosine_similarity(query_vector, task_vectors).flatten()
     best_match_index = similarities.argmax()
     best_match_score = similarities[best_match_index]
-    if best_match_score > 0.3:  # Threshold for similarity
-        return df.iloc[best_match_index]['Answer']
-    else:
-        return None
+    
+    if best_match_score > 0.3:  # Similarity threshold
+        return df.iloc[best_match_index]["Details"]
+    return None
 
-# Streamlit app
-st.title("College Chatbot 🎓")
-st.write("Welcome to the College Chatbot! Ask me anything about the college.")
+# Streamlit App UI
+st.title("Personal Task Manager ✅")
+st.write("Manage your tasks and get AI assistance.")
 
 # Display chat history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Chat input
-if prompt := st.chat_input("Type your question here..."):
-    # Add user message to chat history
+# Task Input Section
+with st.expander("➕ Add a New Task"):
+    task_title = st.text_input("Task Title", key="task_title")
+    task_details = st.text_area("Task Details", key="task_details")
+    if st.button("Add Task"):
+        if task_title and task_details:
+            new_task = pd.DataFrame([[task_title.lower(), task_details.lower()]], columns=["Task", "Details"])
+            st.session_state.tasks = pd.concat([st.session_state.tasks, new_task], ignore_index=True)
+            st.success(f"Task '{task_title}' added!")
+        else:
+            st.warning("Please enter both task title and details.")
+
+# Train the vectorizer if there are tasks
+if not st.session_state.tasks.empty:
+    task_vectors = vectorizer.fit_transform(st.session_state.tasks["Task"])
+
+# Chatbot Input
+if prompt := st.chat_input("Ask about a task or get AI help..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Step 1: Search the CSV file for the closest answer
-    closest_answer = find_closest_question(prompt, vectorizer, question_vectors, df)
-    
-    if closest_answer:
-        # If a relevant answer is found in the CSV, display it directly
-        st.session_state.messages.append({"role": "assistant", "content": closest_answer})
-        with st.chat_message("assistant"):
-            st.markdown(closest_answer)
+    # Step 1: Search for a relevant task
+    closest_task = None
+    if not st.session_state.tasks.empty:
+        closest_task = find_closest_task(prompt, vectorizer, task_vectors, st.session_state.tasks)
+
+    if closest_task:
+        response_text = f"Here’s what I found about your task:\n\n**{closest_task}**"
     else:
-        # If no relevant answer is found, use Gemini to generate a concise response
+        # Step 2: Generate a response using Gemini AI
         try:
             response = model.generate_content(prompt)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
-            with st.chat_message("assistant"):
-                st.markdown(response.text)
+            response_text = response.text
         except Exception as e:
-            st.error(f"Sorry, I couldn't generate a response. Error: {e}")
+            response_text = f"Sorry, I couldn't generate a response. Error: {e}"
+
+    st.session_state.messages.append({"role": "assistant", "content": response_text})
+    with st.chat_message("assistant"):
+        st.markdown(response_text)

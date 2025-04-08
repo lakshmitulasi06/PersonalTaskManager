@@ -3,7 +3,11 @@ pandas
 google-generativeai
 scikit-learn
 plyer
-google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
-speechrecognition
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+SpeechRecognition
 pywhatkit
 pyautogui
+

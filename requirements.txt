@@ -1,13 +1,13 @@
 streamlit
-pandas
-google-generativeai
-scikit-learn
+SpeechRecognition
+pyttsx3
+pyaudio
+pyautogui
 plyer
+pywhatkit
+google-api-python-client
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
-google-api-python-client
-SpeechRecognition
-pywhatkit
-pyautogui
+
 
